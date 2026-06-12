@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Tasks</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --tg-theme-bg-color: #ffffff;
+    --tg-theme-text-color: #000000;
+    --tg-theme-hint-color: #999999;
+    --tg-theme-link-color: #2481cc;
+    --tg-theme-button-color: #2481cc;
+    --tg-theme-button-text-color: #ffffff;
+    --tg-theme-secondary-bg-color: #f1f1f1;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--tg-theme-bg-color);
+    color: var(--tg-theme-text-color);
+    min-height: 100vh;
+    padding-bottom: 80px;
+  }
+
+  /* Header */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--tg-theme-bg-color);
+    border-bottom: 0.5px solid rgba(0,0,0,0.08);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .header-title {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+  }
+  .header-add {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--tg-theme-button-color);
+    color: var(--tg-theme-button-text-color);
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    line-height: 1;
+  }
+
+  /* Content */
+  .content { padding: 8px 0; }
+
+  /* Project Block */
+  .project-block {
+    margin: 4px 16px 4px;
+    background: var(--tg-theme-secondary-bg-color);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .project-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 14px;
+    cursor: pointer;
+    gap: 8px;
+    user-select: none;
+  }
+
+  .project-chevron {
+    width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.2s ease;
+    color: var(--tg-theme-hint-color);
+    flex-shrink: 0;
+  }
+  .project-chevron svg { width: 16px; height: 16px; }
+  .project-block.open .project-chevron { transform: rotate(90deg); }
+
+  .project-name {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .project-count {
+    font-size: 12px;
+    color: var(--tg-theme-hint-color);
+    background: rgba(0,0,0,0.06);
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+
+  .project-actions {
+    display: flex;
+    gap: 2px;
+  }
+  .project-action-btn {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: none;
+    border: none;
+    color: var(--tg-theme-hint-color);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    transition: background 0.15s;
+  }
+  .project-action-btn:active { background: rgba(0,0,0,0.08); }
+
+  /* Tasks list inside project */
+  .tasks-list {
+    display: none;
+    border-top: 0.5px solid rgba(0,0,0,0.06);
+    padding: 4px 0;
+  }
+  .project-block.open .tasks-list { display: block; }
+
+  .task-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    gap: 10px;
+    border-bottom: 0.5px solid rgba(0,0,0,0.04);
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .task-item:last-child { border-bottom: none; }
+  .task-item:active { background: rgba(0,0,0,0.04); }
+
+  .task-status-dot {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 2px solid;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .task-status-dot.todo { border-color: var(--tg-theme-hint-color); }
+  .task-status-dot.in_progress { border-color: #f59e0b; background: rgba(245,158,11,0.12); }
+  .task-status-dot.done { border-color: #22c55e; background: #22c55e; }
+  .task-status-dot.cancelled { border-color: #ef4444; background: rgba(239,68,68,0.12); }
+  .task-status-dot.done::after {
+    content: '';
+    width: 6px; height: 4px;
+    border-left: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transform: rotate(-45deg) translateY(-1px);
+    display: block;
+  }
+  .task-status-dot.cancelled::after {
+    content: '×';
+    font-size: 13px;
+    color: #ef4444;
+    line-height: 1;
+    font-weight: 600;
+  }
+
+  .task-title {
+    flex: 1;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  .task-item[data-status="done"] .task-title { text-decoration: line-through; color: var(--tg-theme-hint-color); }
+  .task-item[data-status="cancelled"] .task-title { color: var(--tg-theme-hint-color); opacity: 0.7; }
+
+  .task-delete-btn {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: none;
+    border: none;
+    color: var(--tg-theme-hint-color);
+    cursor: pointer;
+    font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+    flex-shrink: 0;
+  }
+  .task-item:hover .task-delete-btn { opacity: 1; }
+
+  /* Add task button inside project */
+  .add-task-row {
+    display: flex;
+    align-items: center;
+    padding: 9px 14px;
+    gap: 10px;
+    cursor: pointer;
+    color: var(--tg-theme-link-color);
+    font-size: 14px;
+    transition: background 0.1s;
+  }
+  .add-task-row:active { background: rgba(0,0,0,0.04); }
+  .add-task-row svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 60px 32px;
+    color: var(--tg-theme-hint-color);
+  }
+  .empty-state-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state-title { font-size: 17px; font-weight: 600; color: var(--tg-theme-text-color); margin-bottom: 6px; }
+  .empty-state-sub { font-size: 14px; line-height: 1.5; }
+
+  /* Modal / Sheet */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 200;
+    display: none;
+    align-items: flex-end;
+  }
+  .overlay.visible { display: flex; }
+
+  .sheet {
+    background: var(--tg-theme-bg-color);
+    border-radius: 16px 16px 0 0;
+    padding: 16px;
+    width: 100%;
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  .sheet-handle {
+    width: 36px; height: 4px;
+    background: rgba(0,0,0,0.12);
+    border-radius: 2px;
+    margin: 0 auto 16px;
+  }
+
+  .sheet-title {
+    font-size: 17px;
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  .sheet-input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--tg-theme-secondary-bg-color);
+    border: none;
+    font-size: 15px;
+    color: var(--tg-theme-text-color);
+    outline: none;
+    margin-bottom: 12px;
+    font-family: inherit;
+  }
+  .sheet-input::placeholder { color: var(--tg-theme-hint-color); }
+
+  .sheet-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: var(--radius-sm);
+    background: var(--tg-theme-button-color);
+    color: var(--tg-theme-button-text-color);
+    border: none;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .sheet-btn:active { opacity: 0.85; }
+
+  /* Status Sheet */
+  .status-list { display: flex; flex-direction: column; gap: 4px; }
+  .status-option {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    background: var(--tg-theme-secondary-bg-color);
+    transition: background 0.1s;
+    border: none;
+    width: 100%;
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--tg-theme-text-color);
+    text-align: left;
+  }
+  .status-option:active { background: rgba(0,0,0,0.08); }
+  .status-option.selected { background: rgba(36,129,204,0.1); }
+  .status-dot-preview {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 2px solid;
+    flex-shrink: 0;
+  }
+  .status-dot-preview.todo { border-color: var(--tg-theme-hint-color); }
+  .status-dot-preview.in_progress { border-color: #f59e0b; }
+  .status-dot-preview.done { border-color: #22c55e; }
+  .status-dot-preview.cancelled { border-color: #ef4444; }
+
+  /* Loading */
+  .loading {
+    display: flex; align-items: center; justify-content: center;
+    height: 200px;
+  }
+  .spinner {
+    width: 28px; height: 28px;
+    border: 3px solid rgba(0,0,0,0.1);
+    border-top-color: var(--tg-theme-button-color);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Dark mode via Telegram theme */
+  @media (prefers-color-scheme: dark) {
+    .project-count { background: rgba(255,255,255,0.08); }
+    .task-item:active { background: rgba(255,255,255,0.04); }
+    .add-task-row:active { background: rgba(255,255,255,0.04); }
+    .project-action-btn:active { background: rgba(255,255,255,0.08); }
+    .status-option { background: var(--tg-theme-secondary-bg-color); }
+    .status-option:active { background: rgba(255,255,255,0.08); }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="header-title">Tasks</span>
+  <button class="header-add" onclick="openNewProjectSheet()" aria-label="Новый проект">+</button>
+</div>
+
+<div class="content" id="content">
+  <div class="loading"><div class="spinner"></div></div>
+</div>
+
+<!-- New Project Sheet -->
+<div class="overlay" id="projectSheet" onclick="closeSheetOnBg(event, 'projectSheet')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Новый проект</div>
+    <input class="sheet-input" id="projectInput" type="text" placeholder="Название проекта" maxlength="60">
+    <button class="sheet-btn" onclick="submitNewProject()">Создать</button>
+  </div>
+</div>
+
+<!-- New Task Sheet -->
+<div class="overlay" id="taskSheet" onclick="closeSheetOnBg(event, 'taskSheet')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Новая задача</div>
+    <input class="sheet-input" id="taskInput" type="text" placeholder="Что нужно сделать?" maxlength="200">
+    <button class="sheet-btn" onclick="submitNewTask()">Добавить</button>
+  </div>
+</div>
+
+<!-- Status Sheet -->
+<div class="overlay" id="statusSheet" onclick="closeSheetOnBg(event, 'statusSheet')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Статус задачи</div>
+    <div class="status-list">
+      <button class="status-option" onclick="setStatus('todo')">
+        <span class="status-dot-preview todo"></span> To do
+      </button>
+      <button class="status-option" onclick="setStatus('in_progress')">
+        <span class="status-dot-preview in_progress"></span> In progress
+      </button>
+      <button class="status-option" onclick="setStatus('done')">
+        <span class="status-dot-preview done"></span> Done
+      </button>
+      <button class="status-option" onclick="setStatus('cancelled')">
+        <span class="status-dot-preview cancelled"></span> Cancelled
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+if (tg) {
+  tg.ready();
+  tg.expand();
+}
+
+// Apply Telegram theme
+function applyTheme() {
+  if (!tg) return;
+  const c = tg.themeParams;
+  if (c.bg_color) document.documentElement.style.setProperty('--tg-theme-bg-color', c.bg_color);
+  if (c.text_color) document.documentElement.style.setProperty('--tg-theme-text-color', c.text_color);
+  if (c.hint_color) document.documentElement.style.setProperty('--tg-theme-hint-color', c.hint_color);
+  if (c.link_color) document.documentElement.style.setProperty('--tg-theme-link-color', c.link_color);
+  if (c.button_color) document.documentElement.style.setProperty('--tg-theme-button-color', c.button_color);
+  if (c.button_text_color) document.documentElement.style.setProperty('--tg-theme-button-text-color', c.button_text_color);
+  if (c.secondary_bg_color) document.documentElement.style.setProperty('--tg-theme-secondary-bg-color', c.secondary_bg_color);
+}
+applyTheme();
+
+const API = '';  // same origin
+let userId = null;
+let projects = [];
+let activeProjectId = null;
+let activeTaskId = null;
+let openProjects = new Set();
+
+// Get user ID from URL or Telegram
+function getUserId() {
+  const params = new URLSearchParams(location.search);
+  const fromUrl = params.get('user_id');
+  if (fromUrl) return parseInt(fromUrl);
+  if (tg?.initDataUnsafe?.user?.id) return tg.initDataUnsafe.user.id;
+  return null;
+}
+
+async function loadData() {
+  userId = getUserId();
+  if (!userId) {
+    document.getElementById('content').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">🔒</div>
+        <div class="empty-state-title">Нет доступа</div>
+        <div class="empty-state-sub">Откройте через Telegram бота</div>
+      </div>`;
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/data?user_id=${userId}`);
+    const data = await res.json();
+    projects = data.projects || [];
+    renderAll();
+  } catch (e) {
+    document.getElementById('content').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">⚡</div>
+        <div class="empty-state-title">Ошибка загрузки</div>
+        <div class="empty-state-sub">Проверьте соединение и попробуйте снова</div>
+      </div>`;
+  }
+}
+
+function renderAll() {
+  const content = document.getElementById('content');
+  if (!projects.length) {
+    content.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">📋</div>
+        <div class="empty-state-title">Нет проектов</div>
+        <div class="empty-state-sub">Нажмите + чтобы создать первый проект,<br>или напишите задачу боту — он всё сделает сам</div>
+      </div>`;
+    return;
+  }
+
+  content.innerHTML = projects.map((p, idx) => renderProject(p, idx)).join('');
+}
+
+function renderProject(p, idx) {
+  const isOpen = openProjects.has(p.id);
+  const totalTasks = p.tasks?.length || 0;
+  const tasks = p.tasks || [];
+
+  return `
+  <div class="project-block ${isOpen ? 'open' : ''}" id="project-${p.id}">
+    <div class="project-header" onclick="toggleProject(${p.id})">
+      <div class="project-chevron">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="5,3 11,8 5,13"/>
+        </svg>
+      </div>
+      <span class="project-name">${escHtml(p.name)}</span>
+      ${totalTasks ? `<span class="project-count">${totalTasks}</span>` : ''}
+      <div class="project-actions" onclick="event.stopPropagation()">
+        ${idx > 0 ? `<button class="project-action-btn" onclick="moveProject(${p.id},'up')" title="Вверх">↑</button>` : ''}
+        ${idx < projects.length - 1 ? `<button class="project-action-btn" onclick="moveProject(${p.id},'down')" title="Вниз">↓</button>` : ''}
+        <button class="project-action-btn" onclick="deleteProject(${p.id})" title="Удалить" style="color: #ef4444;">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="2,4 14,4"/><path d="M5,4V2h6v2"/><path d="M3,4l1,10h8l1-10"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="tasks-list">
+      ${tasks.map(t => renderTask(t)).join('')}
+      <div class="add-task-row" onclick="openNewTaskSheet(${p.id})">
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="9" y1="3" x2="9" y2="15"/><line x1="3" y1="9" x2="15" y2="9"/>
+        </svg>
+        Добавить задачу
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderTask(t) {
+  return `
+  <div class="task-item" data-status="${t.status}" data-id="${t.id}" onclick="openStatusSheet(${t.id}, '${t.status}')">
+    <div class="task-status-dot ${t.status}"></div>
+    <span class="task-title">${escHtml(t.title)}</span>
+    <button class="task-delete-btn" onclick="event.stopPropagation(); deleteTask(${t.id})" aria-label="Удалить задачу">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="2" y1="2" x2="12" y2="12"/><line x1="12" y1="2" x2="2" y2="12"/>
+      </svg>
+    </button>
+  </div>`;
+}
+
+function toggleProject(id) {
+  if (openProjects.has(id)) openProjects.delete(id);
+  else openProjects.add(id);
+  const block = document.getElementById(`project-${id}`);
+  block.classList.toggle('open');
+}
+
+// --- New Project ---
+function openNewProjectSheet() {
+  document.getElementById('projectInput').value = '';
+  document.getElementById('projectSheet').classList.add('visible');
+  setTimeout(() => document.getElementById('projectInput').focus(), 300);
+}
+
+async function submitNewProject() {
+  const name = document.getElementById('projectInput').value.trim();
+  if (!name) return;
+  closeSheet('projectSheet');
+
+  const res = await fetch(`${API}/api/projects`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({user_id: userId, name})
+  });
+  if (res.ok) {
+    tg?.HapticFeedback?.impactOccurred('light');
+    await loadData();
+    const newProj = projects.find(p => p.name === name);
+    if (newProj) openProjects.add(newProj.id);
+    renderAll();
+  }
+}
+
+// --- New Task ---
+function openNewTaskSheet(projectId) {
+  activeProjectId = projectId;
+  document.getElementById('taskInput').value = '';
+  document.getElementById('taskSheet').classList.add('visible');
+  setTimeout(() => document.getElementById('taskInput').focus(), 300);
+}
+
+async function submitNewTask() {
+  const title = document.getElementById('taskInput').value.trim();
+  if (!title) return;
+  closeSheet('taskSheet');
+
+  const res = await fetch(`${API}/api/tasks`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({user_id: userId, project_id: activeProjectId, title})
+  });
+  if (res.ok) {
+    tg?.HapticFeedback?.impactOccurred('light');
+    await loadData();
+    openProjects.add(activeProjectId);
+    renderAll();
+  }
+}
+
+// --- Status ---
+function openStatusSheet(taskId, currentStatus) {
+  activeTaskId = taskId;
+  document.getElementById('statusSheet').classList.add('visible');
+  document.querySelectorAll('.status-option').forEach(btn => {
+    btn.classList.toggle('selected', btn.getAttribute('onclick')?.includes(`'${currentStatus}'`));
+  });
+}
+
+async function setStatus(status) {
+  closeSheet('statusSheet');
+  const res = await fetch(`${API}/api/tasks/${activeTaskId}`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({user_id: userId, status})
+  });
+  if (res.ok) {
+    tg?.HapticFeedback?.impactOccurred('light');
+    // Update locally for instant feedback
+    projects.forEach(p => {
+      p.tasks?.forEach(t => {
+        if (t.id === activeTaskId) t.status = status;
+      });
+    });
+    renderAll();
+    // Reopen projects
+    openProjects.forEach(id => {
+      const block = document.getElementById(`project-${id}`);
+      if (block) block.classList.add('open');
+    });
+  }
+}
+
+// --- Delete ---
+async function deleteTask(taskId) {
+  tg?.HapticFeedback?.impactOccurred('medium');
+  const res = await fetch(`${API}/api/tasks/${taskId}?user_id=${userId}`, {method: 'DELETE'});
+  if (res.ok) {
+    projects.forEach(p => {
+      if (p.tasks) p.tasks = p.tasks.filter(t => t.id !== taskId);
+    });
+    renderAll();
+    openProjects.forEach(id => {
+      const block = document.getElementById(`project-${id}`);
+      if (block) block.classList.add('open');
+    });
+  }
+}
+
+async function deleteProject(projectId) {
+  const project = projects.find(p => p.id === projectId);
+  const taskCount = project?.tasks?.length || 0;
+  const msg = taskCount > 0
+    ? `Удалить проект «${project.name}» и ${taskCount} задач(и)?`
+    : `Удалить проект «${project?.name}»?`;
+
+  if (!confirm(msg)) return;
+  tg?.HapticFeedback?.impactOccurred('medium');
+
+  const res = await fetch(`${API}/api/projects/${projectId}?user_id=${userId}`, {method: 'DELETE'});
+  if (res.ok) {
+    openProjects.delete(projectId);
+    await loadData();
+  }
+}
+
+async function moveProject(projectId, direction) {
+  const res = await fetch(`${API}/api/projects/${projectId}/move`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({user_id: userId, direction})
+  });
+  if (res.ok) {
+    tg?.HapticFeedback?.selectionChanged?.();
+    await loadData();
+    openProjects.forEach(id => {
+      const block = document.getElementById(`project-${id}`);
+      if (block) block.classList.add('open');
+    });
+    renderAll();
+    openProjects.forEach(id => {
+      const block = document.getElementById(`project-${id}`);
+      if (block) block.classList.add('open');
+    });
+  }
+}
+
+// --- Sheets ---
+function closeSheet(id) {
+  document.getElementById(id).classList.remove('visible');
+}
+
+function closeSheetOnBg(event, id) {
+  if (event.target === document.getElementById(id)) closeSheet(id);
+}
+
+// Enter key for inputs
+document.getElementById('projectInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitNewProject();
+});
+document.getElementById('taskInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitNewTask();
+});
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+loadData();
+</script>
+</body>
+</html>
